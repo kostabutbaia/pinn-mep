@@ -126,10 +126,10 @@ $$\mathrm{dist}_G(\theta_1,\theta_2)=\int_0^1\sqrt{\dot{\theta}(t)^TG(\theta(t))
 ## 3. sgGN method with PINNs loss
 Solving the BVP problem using PINNs with sgGN method ([Cai *et al.*, 2024](https://arxiv.org/pdf/2404.05064)) which identifies sources of singularity by factorization of gauss-newton matrix. the PINNs tackles solving problems like:
 
-$$\left\{\begin{align*}
+$$\begin{align*}
 & \mathcal{L}u(x)=f(x),\quad x\in\Omega \\
 & \mathcal{B}u(x)=g(x),\quad x\in\partial\Omega
-\end{align*}\right.$$
+\end{align*}$$
 
 approximate PINNs with a shallow ReLU network:
 
