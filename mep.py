@@ -3,6 +3,7 @@ import numpy as np
 import torch
 from torch import nn
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
+import matplotlib.pyplot as plt
 
 from eng import build_energy_gram, line_search
 from anim import create_anim_gif
@@ -33,7 +34,7 @@ def get_path(
 
     for i, cycle in enumerate(cycles):
         print(f"[Cycle {i+1}]  Epochs = {cycle[0]}  |  Learning Rate = {cycle[1]}")
-        for _ in range(cycle[0]):
+        for cycle_epoch in range(cycle[0]):
             losses = []
             grads = []
             for p in pivots:
@@ -59,7 +60,7 @@ def get_path(
             
             new_pivots = [pivots[0]] + new_pivots + [pivots[-1]]
             pivots = new_pivots
-            if make_gif:
+            if make_gif and cycle_epoch%5 == 0:
                 alphas = np.linspace(0, 1, num_pivots+2)
                 errors = [loss_fn(model).item() for model in pivots_to_models(pivots, model1)]
                 frames.append((alphas, errors))
@@ -84,3 +85,21 @@ def pivots_to_models(pivots: list, model: nn.Module) -> list[nn.Module]:
         vector_to_parameters(p, m.parameters())
         models.append(m)
     return models
+
+def plot_distance_between_pivots(pivots: list[nn.Module]) -> None:
+    distances = []
+
+    for i in range(len(pivots)-1):
+        pivot_i = parameters_to_vector(pivots[i].parameters()).detach()
+        pivot_i_next = parameters_to_vector(pivots[i+1].parameters()).detach()
+
+        distances.append((pivot_i_next-pivot_i).norm().item())
+
+    pivot_first = parameters_to_vector(pivots[0].parameters()).detach()
+    pivot_last = parameters_to_vector(pivots[-1].parameters()).detach()
+    plt.plot(distances)
+
+    plt.axhline(y=(pivot_last - pivot_first).norm().item()/len(pivots), color='r', linestyle='--',)
+    plt.ylim(0, (pivot_last - pivot_first).norm().item())
+    plt.grid()
+    plt.show()
