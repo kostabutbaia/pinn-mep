@@ -9,13 +9,16 @@ def interpolate_model(model1: nn.Module, model2: nn.Module, t: float) -> nn.Modu
             p_interp.copy_((1 - t) * p1 + t * p2)
     return model_interp
 
-def get_lin_interp(loss_fn, model1: nn.Module, model2: nn.Module, count: int) -> list[float]:
+def get_lin_interp(loss_fn, model1: nn.Module, model2: nn.Module, count: int) -> tuple[list[float], list[nn.Module]]:
     t_space = np.linspace(0, 1, count)
     losses = []
+    models = []
     for t in t_space:
-         loss = loss_fn(interpolate_model(model1, model2, t)).item()
+         model = interpolate_model(model1, model2, t)
+         models.append(model)
+         loss = loss_fn(model).item()
          losses.append(loss)
-    return losses
+    return losses, models
 
 class Model(nn.Module):
     def __init__(self, hidden_layers, activation, in_features=1, out_features=1):
