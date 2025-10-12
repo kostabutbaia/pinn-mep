@@ -4,6 +4,7 @@ import numpy as np
 
 def train_pinn_engd(
     model: torch.nn.Module,
+    loss_fn,
     x_train: torch.Tensor,
     num_epochs: int,
     lr: float
@@ -14,23 +15,7 @@ def train_pinn_engd(
     P = torch.cat([p.reshape(-1) for p in params]).numel()
 
     for epoch in range(num_epochs):
-        u_pred = model(x_train)
-
-        # Derivatives
-        u_x = torch.autograd.grad(u_pred, x_train,
-                                  grad_outputs=torch.ones_like(u_pred),
-                                  create_graph=True)[0]
-        u_xx = torch.autograd.grad(u_x, x_train,
-                                   grad_outputs=torch.ones_like(u_x),
-                                   create_graph=True)[0]
-
-        # Calculate PINN Loss
-        pde_loss = torch.mean((u_xx + np.pi**2 * torch.sin(np.pi * x_train))**2)
-        bound_loss = torch.mean(
-            model(torch.tensor([[0.0]], dtype=x_train.dtype))**2 +
-            model(torch.tensor([[2.0]], dtype=x_train.dtype))**2
-        )
-        loss = pde_loss + bound_loss
+        loss = loss_fn(model)
         losses.append(loss.item())
 
         # Get gradient of loss
@@ -44,13 +29,9 @@ def train_pinn_engd(
         # Solve least squares for pseudo-inverse: G phi = grad_vec
         natural_grad = torch.linalg.lstsq(G, grad_vec.unsqueeze(1)).solution
         natural_grad = natural_grad.squeeze()
-        # print(natural_grad)
-        # print('-'*100)
-        # print(grad_vec)
-        # exit()
 
-        lr = line_search(model, x_train, natural_grad)
-        # print(f'FOUND: {lr}')
+        lr = line_search(model, loss_fn, natural_grad)
+
         # Update parameters with natural gradient
         with torch.no_grad():
             idx = 0
@@ -91,7 +72,7 @@ def build_energy_gram(model: nn.Module, x_interior, x_boundary):
 
     return G
 
-def line_search(model, x_train, natural_grad, steps=20):
+def line_search(model, loss_fn, natural_grad, steps=20):
     eta_candidates = torch.logspace(np.log10(1e-5), np.log10(1), steps=steps)
     best_loss = None
     best_eta = 1
@@ -106,19 +87,7 @@ def line_search(model, x_train, natural_grad, steps=20):
                 idx += size
 
         # Compute loss after update
-        u_pred_curr = model(x_train)
-        u_x_curr = torch.autograd.grad(u_pred_curr, x_train,
-                                      grad_outputs=torch.ones_like(u_pred_curr),
-                                      create_graph=True)[0]
-        u_xx_curr = torch.autograd.grad(u_x_curr, x_train,
-                                       grad_outputs=torch.ones_like(u_x_curr),
-                                       create_graph=True)[0]
-        pde_loss_curr = torch.mean((u_xx_curr + np.pi**2 * torch.sin(np.pi * x_train))**2)
-        bound_loss_curr = torch.mean(
-            model(torch.tensor([[0.0]], dtype=x_train.dtype))**2 +
-            model(torch.tensor([[2.0]], dtype=x_train.dtype))**2
-        )
-        curr_loss = pde_loss_curr + bound_loss_curr
+        curr_loss = loss_fn(model)
 
         # Restore parameters
         idx = 0
@@ -127,7 +96,7 @@ def line_search(model, x_train, natural_grad, steps=20):
                 size = p.numel()
                 p += eta * natural_grad[idx:idx+size].view_as(p)
                 idx += size
-        # print(f'- eta: {eta} cur loss: {curr_loss}, best loss: {best_loss}')
+
         if best_loss is None or curr_loss < best_loss:
             best_loss = curr_loss
             best_eta = eta
