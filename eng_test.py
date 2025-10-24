@@ -13,6 +13,7 @@ seed = 42
 random.seed(seed)
 np.random.seed(seed)
 torch.manual_seed(seed)
+torch.set_default_dtype(torch.float64)
 
 def main():
     x_train = torch.linspace(0, 2, 100).view(-1, 1)
@@ -20,7 +21,7 @@ def main():
 
     y_target = torch.sin(2*np.pi*x_train)
 
-    model = Model([15, 15], 'sin')
+    model = Model([15, 15], 'tanh')
 
     def loss_fn_pinn(model: nn.Module):
         u_pred = model(x_train)
@@ -33,14 +34,14 @@ def main():
         loss = pde_loss + bound_loss
         return loss
     
-    train_pinn_engd(model, loss_fn_pinn, x_train, 300, 1e-4)
-    # train_nn('adam', model, loss_fn_pinn, 25000, 1e-4)
+    losses = train_pinn_engd(model, loss_fn_pinn, x_train, 150, 1e-4)
 
-    # x_plot = torch.linspace(-5, 7, 100).view(-1, 1)
-    plt.plot(x_train.tolist(), model(x_train).tolist(), 'g', label='Model')
-    plt.plot(x_train.tolist(), y_target.tolist(), 'r--', label='Target')
+    plt.plot(losses)
     plt.grid()
-    plt.legend()
+    plt.yscale('log')
+    plt.title('E-NGD Training Loss')
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
     plt.show()
 
 

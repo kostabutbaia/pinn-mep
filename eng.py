@@ -41,7 +41,7 @@ def train_pinn_engd(
                 idx += size
 
         if (epoch + 1) % 1 == 0:
-            print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.7f}")
+            print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item()}, Step: {lr}")
 
     return losses
 
@@ -62,7 +62,7 @@ def build_energy_gram(model: nn.Module, x_interior, x_boundary):
         d_u_xx = torch.autograd.grad(u_xx[k], model.parameters(), retain_graph=True, create_graph=True, allow_unused=True)
         d_u_xx = torch.cat([t.reshape(-1) if t is not None else torch.tensor([0.]) for t in d_u_xx])
 
-        G += 1/len(x_interior)*torch.outer(d_u_xx, d_u_xx)
+        G += 2/len(x_interior)*torch.outer(d_u_xx, d_u_xx)
 
     for m in range(len(x_boundary)):
         d_u_b = torch.autograd.grad(u_b[m], model.parameters(), retain_graph=True, create_graph=True, allow_unused=True)
@@ -73,7 +73,7 @@ def build_energy_gram(model: nn.Module, x_interior, x_boundary):
     return G
 
 def line_search(model, loss_fn, natural_grad, steps=20):
-    eta_candidates = torch.logspace(np.log10(1e-5), np.log10(1), steps=steps)
+    eta_candidates = torch.logspace(np.log10(1e-19), np.log10(1000), steps=steps)
     best_loss = None
     best_eta = 1
 
